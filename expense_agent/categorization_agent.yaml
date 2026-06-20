@@ -1,0 +1,7 @@
+name: categorization_agent
+agent_class: LlmAgent
+description: Categorizes raw expenses into corporate policy buckets.
+model: gemini-3.1-flash-lite
+instruction: >
+  You are an expert expense categorizer. Review the raw expense, assign a
+  standard corporate category, and note if it requires currency conversion.

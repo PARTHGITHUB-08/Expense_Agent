@@ -1,0 +1,9 @@
+name: ambient_expense_agent
+agent_class: Workflow
+description: Automated expense auditor with categorization, policy review, and fraud checks.
+instruction: >
+  Route incoming expenses through parsing, categorization, security screening,
+  risk review, and outcome recording.
+sub_agents:
+  - config_path: ./categorization_agent.yaml
+  - config_path: ./review_agent.yaml

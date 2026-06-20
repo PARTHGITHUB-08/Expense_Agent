@@ -3,14 +3,16 @@ import re
 import json
 import asyncio
 import threading
+from datetime import date
 from pydantic import BaseModel, Field
+from pydantic import ValidationError
 from typing import Any
 
 from google.adk.workflow import Workflow, node, Edge, START
 from google.adk.agents import LlmAgent
 from google.adk.agents.context import Context
 from google.adk.events.event import Event
-from google.adk.events.request_input import RequestInput
+from google.adk.events.event_actions import EventActions
 from google.adk.apps import App
 from google.genai import types
 
@@ -36,6 +38,46 @@ class CategorizationOutput(BaseModel):
     corporate_category: str
     requires_conversion: bool
     notes: str
+
+
+def _normalize_expense_payload(node_input: Any) -> tuple[dict[str, Any] | None, str | None]:
+    try:
+        if isinstance(node_input, types.Content):
+            payload = node_input.parts[0].text.strip()
+            data = json.loads(payload) if payload else {}
+        else:
+            if isinstance(node_input, dict):
+                data = node_input
+            else:
+                stripped = str(node_input).strip()
+                data = json.loads(stripped) if stripped else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    if "data" in data and isinstance(data["data"], str):
+        try:
+            decoded = base64.b64decode(data["data"]).decode("utf-8")
+            expense_data = json.loads(decoded)
+        except Exception:
+            expense_data = json.loads(data["data"]) if isinstance(data["data"], str) else data["data"]
+    else:
+        expense_data = data
+
+    if not isinstance(expense_data, dict):
+        return None, (
+            "Please send an expense as JSON with amount, submitter, category, "
+            "description, date, and optional currency."
+        )
+
+    try:
+        Expense(**expense_data)
+    except ValidationError:
+        return None, (
+            "I couldn't parse that as a complete expense. Please resend JSON with "
+            "amount, submitter, category, description, date, and optional currency."
+        )
+
+    return expense_data, None
 
 # --- SKILLS (TOOLS) ---
 
@@ -104,30 +146,14 @@ def receipt_fraud_check(merchant_name: str, amount: float) -> str:
 @node
 def parse_expense(node_input: Any) -> Event:
     """Parses incoming JSON/pubsub payload into an Expense model. Strictly validates."""
-    try:
-        if isinstance(node_input, types.Content):
-            payload = node_input.parts[0].text.strip()
-            data = json.loads(payload) if payload else {}
-        else:
-            if isinstance(node_input, dict):
-                data = node_input
-            else:
-                stripped = str(node_input).strip()
-                data = json.loads(stripped) if stripped else {}
-    except json.JSONDecodeError:
-        # User typed plain text instead of JSON
-        data = {}
+    expense_data, clarification = _normalize_expense_payload(node_input)
+    if expense_data is None:
+        return Event(
+            output={"status": "needs_input", "message": clarification},
+            actions=EventActions(route="record_outcome"),
+            state={"status": "needs_input"},
+        )
 
-    if "data" in data and isinstance(data["data"], str):
-        try:
-            decoded = base64.b64decode(data["data"]).decode("utf-8")
-            expense_data = json.loads(decoded)
-        except Exception:
-            expense_data = json.loads(data["data"]) if isinstance(data["data"], str) else data["data"]
-    else:
-        expense_data = data
-
-    # Schema Validation - strict parsing
     expense = Expense(**expense_data)
     
     state_updates = {"expense": expense.model_dump()}
@@ -218,17 +244,33 @@ def evaluate_review(ctx: Context, node_input: ReviewOutput) -> Event:
          return Event(output=node_input, route="human_review")
     return Event(output=node_input, route="auto_approve")
 
+
 @node
-def record_outcome(node_input: dict) -> dict:
+def record_outcome(node_input: Any) -> Any:
     """Final node to log the outcome."""
     print(f"Outcome recorded: {node_input}")
-    return node_input
+    if isinstance(node_input, dict) and "message" in node_input:
+        content_text = str(node_input["message"])
+    elif isinstance(node_input, (dict, list)):
+        content_text = json.dumps(node_input, indent=2, ensure_ascii=False)
+    else:
+        content_text = str(node_input)
+
+    return Event(
+        content=types.Content(
+            role="model",
+            parts=[types.Part.from_text(text=content_text)],
+        ),
+        output=node_input,
+        state={"final_output": node_input},
+    )
 
 # Define the Workflow Graph
 root_agent = Workflow(
     name="ambient_expense_agent",
     edges=[
         Edge(from_node=START, to_node=parse_expense),
+        Edge(from_node=parse_expense, to_node=record_outcome, route="record_outcome"),
         Edge(from_node=parse_expense, to_node=categorization_agent, route="categorize"),
         Edge(from_node=categorization_agent, to_node=security_screen),
         Edge(from_node=security_screen, to_node=review_agent, route="clean"),
