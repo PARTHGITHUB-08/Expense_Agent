@@ -1,9 +1,3 @@
-# ambient-expense-agent (Capstone Edition)
-
-**Winner: 5-Day AI Agents Intensive Vibe Coding Course With Google (Agents for Business Track)**
-
-This is a robust Multi-Agent System designed to act as an Automated Expense Auditor. It demonstrates key ADK concepts, robust security guardrails, and native MCP tool integration.
-
 ## Architecture Highlights
 
 This project successfully implements all the core requirements of the Capstone project:
