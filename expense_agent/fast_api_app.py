@@ -703,8 +703,15 @@ async def run_expense(payload: dict[str, Any]) -> dict[str, Any]:
             )
         )
 
+        # Retrieve the updated session containing all events.
+        updated_session = session_service.get_session_sync(
+            app_name="expense_agent",
+            user_id=user_id,
+            session_id=session.id,
+        )
+
         # Extract audit details and return
-        audit_data = extract_audit_data(session)
+        audit_data = extract_audit_data(updated_session or session)
         return audit_data
     except Exception as exc:
         logger.exception("Expense analysis failed")
