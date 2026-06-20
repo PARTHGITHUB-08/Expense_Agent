@@ -59,21 +59,45 @@ def extract_audit_data(session: Any) -> dict[str, Any]:
     for event in session.events:
         # Check categorization agent output
         if event.node_name == "categorization_agent":
+            cat_data = None
             if event.output:
                 if isinstance(event.output, dict):
-                    audit["categorization"] = event.output
+                    cat_data = event.output
                 else:
-                    audit["categorization"] = getattr(
-                        event.output, "model_dump", lambda: {}
-                    )()
+                    cat_data = getattr(event.output, "model_dump", lambda: {})()
+            else:
+                content = getattr(event, "content", None)
+                if content and getattr(content, "parts", None):
+                    for part in content.parts:
+                        if getattr(part, "text", None):
+                            try:
+                                cat_data = json.loads(part.text)
+                                break
+                            except Exception:
+                                pass
+            if cat_data:
+                audit["categorization"] = cat_data
 
         # Check review agent output
         if event.node_name == "review_agent":
+            rev_data = None
             if event.output:
                 if isinstance(event.output, dict):
-                    audit["review"] = event.output
+                    rev_data = event.output
                 else:
-                    audit["review"] = getattr(event.output, "model_dump", lambda: {})()
+                    rev_data = getattr(event.output, "model_dump", lambda: {})()
+            else:
+                content = getattr(event, "content", None)
+                if content and getattr(content, "parts", None):
+                    for part in content.parts:
+                        if getattr(part, "text", None):
+                            try:
+                                rev_data = json.loads(part.text)
+                                break
+                            except Exception:
+                                pass
+            if rev_data:
+                audit["review"] = rev_data
 
         # Check tool calls
         content = getattr(event, "content", None)
@@ -95,7 +119,12 @@ def extract_audit_data(session: Any) -> dict[str, Any]:
         # Check final outcome
         if event.node_name == "record_outcome":
             if event.output:
-                audit["outcome"] = event.output
+                if isinstance(event.output, dict):
+                    audit["outcome"] = event.output
+                else:
+                    audit["outcome"] = getattr(event.output, "model_dump", lambda: {})()
+                    if not audit["outcome"] and hasattr(event.output, "__dict__"):
+                        audit["outcome"] = event.output.__dict__
 
     # Check if currently pending human approval
     if session.events:
@@ -607,10 +636,11 @@ async def home() -> str:
                 `;
             } else if (data.outcome) {
                 const out = data.outcome;
-                const isApproved = out.status === 'approved' || out.status === 'Approve';
+                const isApproved = out.status === 'approved' || out.status === 'Approve' || out.human_approval === 'Approve' || out.human_approval === 'approved';
                 const bannerClass = isApproved ? 'outcome-approved' : 'outcome-rejected';
                 const bannerTitle = isApproved ? 'Expense Approved' : 'Expense Rejected';
                 const bannerIcon = isApproved ? '🎉' : '❌';
+                const reasonText = out.reason || (out.human_approval ? 'Human decision: ' + out.human_approval : 'Unknown');
 
                 decisionArea.innerHTML = `
                     <div class="outcome-banner ${bannerClass}">
@@ -618,7 +648,7 @@ async def home() -> str:
                             <span>${bannerIcon}</span> ${bannerTitle}
                         </div>
                         <div style="font-size: 0.9rem; font-weight: normal; opacity: 0.9;">
-                            Reason: ${out.reason}
+                            Reason: ${reasonText}
                         </div>
                     </div>
                 `;
