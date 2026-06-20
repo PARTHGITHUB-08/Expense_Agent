@@ -21,7 +21,7 @@ fastapi_app = FastAPI(title="Ambient Expense Agent", version="0.1.0")
 
 @fastapi_app.get("/", response_class=HTMLResponse)
 async def home() -> str:
-        return """
+    return """
 <!doctype html>
 <html lang="en">
 <head>
@@ -191,48 +191,48 @@ async def home() -> str:
 
 @fastapi_app.get("/health")
 async def health() -> dict[str, str]:
-        return {"status": "ok", "service": "ambient-expense-agent"}
+    return {"status": "ok", "service": "ambient-expense-agent"}
 
 
 @fastapi_app.post("/run")
 async def run_expense(payload: dict[str, Any]) -> dict[str, Any]:
-        try:
-                session_service = InMemorySessionService()
-                session = session_service.create_session_sync(
-                        user_id=str(payload.get("submitter", "ambient_user")),
-                        app_name="expense_agent",
-                )
-                runner = Runner(
-                        agent=root_agent,
-                        session_service=session_service,
-                        app_name="expense_agent",
-                )
-                message = types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=json.dumps(payload))],
-                )
+    try:
+        session_service = InMemorySessionService()
+        session = session_service.create_session_sync(
+            user_id=str(payload.get("submitter", "ambient_user")),
+            app_name="expense_agent",
+        )
+        runner = Runner(
+            agent=root_agent,
+            session_service=session_service,
+            app_name="expense_agent",
+        )
+        message = types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=json.dumps(payload))],
+        )
 
-                events = list(
-                        runner.run(
-                                new_message=message,
-                                user_id=str(payload.get("submitter", "ambient_user")),
-                                session_id=session.id,
-                        )
-                )
-                summaries = []
-                for event in events:
-                        content = getattr(event, "content", None)
-                        if content and getattr(content, "parts", None):
-                                text_parts = [
-                                        part.text for part in content.parts if getattr(part, "text", None)
-                                ]
-                                if text_parts:
-                                        summaries.append(" ".join(text_parts))
+        events = list(
+            runner.run(
+                new_message=message,
+                user_id=str(payload.get("submitter", "ambient_user")),
+                session_id=session.id,
+            )
+        )
+        summaries = []
+        for event in events:
+            content = getattr(event, "content", None)
+            if content and getattr(content, "parts", None):
+                text_parts = [
+                    part.text for part in content.parts if getattr(part, "text", None)
+                ]
+                if text_parts:
+                    summaries.append(" ".join(text_parts))
 
-                return {
-                        "events": len(events),
-                        "summary": summaries[-1] if summaries else "No text content returned.",
-                }
-        except Exception as exc:
-                logger.exception("Expense analysis failed")
-                raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {
+            "events": len(events),
+            "summary": summaries[-1] if summaries else "No text content returned.",
+        }
+    except Exception as exc:
+        logger.exception("Expense analysis failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

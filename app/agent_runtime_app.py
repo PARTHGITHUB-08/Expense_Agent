@@ -1,1 +1,1 @@
-from expense_agent.agent_runtime_app import *
+from expense_agent.agent_runtime_app import *  # noqa: F403

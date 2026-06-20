@@ -1,1 +1,1 @@
-from expense_agent.app_utils.typing import *
+from expense_agent.app_utils.typing import *  # noqa: F403

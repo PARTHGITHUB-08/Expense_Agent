@@ -94,6 +94,12 @@ logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME")
 
 
 def build_agent_runtime() -> AgentEngineApp | LocalAgentRuntimeApp:
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project or project == "your_gcp_project_id":
+        logging.warning(
+            "No valid GCP project configured. Falling back to local runtime."
+        )
+        return LocalAgentRuntimeApp(app=adk_app)
     try:
         return AgentEngineApp(
             app=adk_app,

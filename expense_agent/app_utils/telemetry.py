@@ -16,7 +16,9 @@ import logging
 import os
 
 
-def setup_telemetry(app: object | None = None, otel_to_cloud: bool = True) -> str | None:
+def setup_telemetry(
+    app: object | None = None, otel_to_cloud: bool = True
+) -> str | None:
     """Configure OpenTelemetry and GenAI telemetry with optional cloud export."""
     os.environ.setdefault(
         "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY",
