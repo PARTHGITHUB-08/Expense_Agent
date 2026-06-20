@@ -3,7 +3,7 @@ import base64
 import json
 import re
 import threading
-from typing import Any
+from typing import Any, Literal
 
 from google.adk.agents import LlmAgent
 from google.adk.agents.context import Context
@@ -26,7 +26,7 @@ class Expense(BaseModel):
     category: str
     description: str
     date: str
-    currency: str = "USD"
+    currency: Literal["INR"] = "INR"
 
 
 class ReviewOutput(BaseModel):

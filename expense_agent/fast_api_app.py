@@ -129,7 +129,7 @@ async def home() -> str:
                 <div class="status"><span class="dot"></span>Ready to analyze</div>
                 <div class="form-grid">
                     <label>Amount <input id="amount" value="45.00" /></label>
-                    <label>Currency <input id="currency" value="USD" /></label>
+                    <label>Currency <input id="currency" value="INR" readonly /></label>
                     <label class="span-2">Submitter <input id="submitter" value="alice@example.com" /></label>
                     <label class="span-2">Category <input id="category" value="Meals" /></label>
                     <label class="span-2">Description <textarea id="description">Lunch with client</textarea></label>
@@ -147,7 +147,7 @@ async def home() -> str:
     <script>
         function fillSample() {
             document.getElementById('amount').value = '45.00';
-            document.getElementById('currency').value = 'USD';
+            document.getElementById('currency').value = 'INR';
             document.getElementById('submitter').value = 'alice@example.com';
             document.getElementById('category').value = 'Meals';
             document.getElementById('description').value = 'Lunch with client';

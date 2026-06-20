@@ -31,7 +31,7 @@ def test_agent_stream() -> None:
         role="user",
         parts=[
             types.Part.from_text(
-                text='{"amount": 45.0, "submitter": "alice@example.com", "category": "Meals", "description": "Lunch with client", "date": "2026-06-20", "currency": "USD"}'
+                text='{"amount": 45.0, "submitter": "alice@example.com", "category": "Meals", "description": "Lunch with client", "date": "2026-06-20", "currency": "INR"}'
             )
         ],
     )
